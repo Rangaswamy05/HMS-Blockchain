@@ -1,70 +1,37 @@
 const express = require('express');
 const cors = require('cors');
-const crypto = require('crypto');
+const mongoose = require('mongoose');
+require('dotenv').config();
+
+// Import services
+const blockchainService = require('./services/blockchainService');
+
+// Import models
+const Patient = require('./models/Patient');
+const MedicalRecord = require('./models/MedicalRecord');
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Simple Blockchain Implementation
-class Block {
-  constructor(index, timestamp, data, previousHash) {
-    this.index = index;
-    this.timestamp = timestamp;
-    this.data = data;
-    this.previousHash = previousHash;
-    this.hash = this.calculateHash();
-  }
+// Connect to MongoDB
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/hms_blockchain', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => {
+  console.log('Connected to MongoDB');
+  // Setup blockchain event listeners
+  blockchainService.setupEventListeners();
+})
+.catch((error) => {
+  console.error('MongoDB connection error:', error);
+});
 
-  calculateHash() {
-    return crypto
-      .createHash('sha256')
-      .update(this.index + this.previousHash + this.timestamp + JSON.stringify(this.data))
-      .digest('hex');
-  }
-}
-
-class Blockchain {
-  constructor() {
-    this.chain = [this.createGenesisBlock()];
-  }
-
-  createGenesisBlock() {
-    return new Block(0, Date.now(), "Genesis Block", "0");
-  }
-
-  getLatestBlock() {
-    return this.chain[this.chain.length - 1];
-  }
-
-  addBlock(newBlock) {
-    newBlock.previousHash = this.getLatestBlock().hash;
-    newBlock.hash = newBlock.calculateHash();
-    this.chain.push(newBlock);
-  }
-
-  addTransaction(transaction) {
-    const newBlock = new Block(
-      this.chain.length,
-      Date.now(),
-      transaction,
-      this.getLatestBlock().hash
-    );
-    this.addBlock(newBlock);
-  }
-
-  getChain() {
-    return this.chain;
-  }
-}
-
-// Initialize blockchain
-const hmsBlockchain = new Blockchain();
-
-// In-memory storage (use database in production)
+// In-memory storage for backward compatibility (will be migrated to MongoDB)
 let patients = [];
 let doctors = [];
 let appointments = [];
@@ -77,64 +44,253 @@ let bills = [];
 let medicines = [];
 let equipment = [];
 let emergencies = [];
-let inventory = []; // Additional feature
-let rooms = []; // Additional feature
+let inventory = [];
+let rooms = [];
 
 // Helper function to generate ID
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
-// Patients
-app.get('/api/patients', (req, res) => {
-  res.json(patients);
-});
-
-app.post('/api/patients', (req, res) => {
-  const patient = {
-    id: generateId(),
-    ...req.body,
-    createdAt: new Date().toISOString()
-  };
-  
-  patients.push(patient);
-  
-  // Add to blockchain
-  hmsBlockchain.addTransaction({
-    type: 'PATIENT_REGISTERED',
-    patientId: patient.id,
-    data: patient,
-    timestamp: new Date().toISOString()
-  });
-  
-  res.status(201).json(patient);
-});
-
-app.get('/api/patients/:id', (req, res) => {
-  const patient = patients.find(p => p.id === req.params.id);
-  if (!patient) {
-    return res.status(404).json({ error: 'Patient not found' });
+// Blockchain endpoints
+app.get('/api/blockchain/stats', async (req, res) => {
+  try {
+    const stats = await blockchainService.getBlockchainStats();
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get blockchain stats' });
   }
-  res.json(patient);
 });
 
-app.put('/api/patients/:id', (req, res) => {
-  const index = patients.findIndex(p => p.id === req.params.id);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Patient not found' });
+app.post('/api/blockchain/verify-record', async (req, res) => {
+  try {
+    const { recordHash } = req.body;
+    const result = await blockchainService.verifyRecord(recordHash);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to verify record' });
   }
-  
-  patients[index] = { ...patients[index], ...req.body, updatedAt: new Date().toISOString() };
-  
-  // Add to blockchain
-  hmsBlockchain.addTransaction({
-    type: 'PATIENT_UPDATED',
-    patientId: req.params.id,
-    data: patients[index],
-    timestamp: new Date().toISOString()
-  });
-  
-  res.json(patients[index]);
 });
 
+app.get('/api/blockchain/record/:hash', async (req, res) => {
+  try {
+    const { hash } = req.params;
+    const result = await blockchainService.getRecordDetails(hash);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get record details' });
+  }
+});
+
+// Enhanced Patients endpoints with blockchain integration
+app.get('/api/patients', async (req, res) => {
+  try {
+    // Try to get from MongoDB first, fallback to in-memory
+    const mongoPatients = await Patient.find({ isActive: true }).sort({ createdAt: -1 });
+    if (mongoPatients.length > 0) {
+      res.json(mongoPatients);
+    } else {
+      res.json(patients);
+    }
+  } catch (error) {
+    console.error('Error fetching patients:', error);
+    res.json(patients); // Fallback to in-memory
+  }
+});
+
+app.post('/api/patients', async (req, res) => {
+  try {
+    // Create patient in MongoDB
+    const patientData = {
+      ...req.body,
+      createdAt: new Date().toISOString()
+    };
+
+    let savedPatient;
+    try {
+      const patient = new Patient(patientData);
+      patient.generateBlockchainId();
+      savedPatient = await patient.save();
+
+      // Register on blockchain
+      const blockchainResult = await blockchainService.registerPatient({
+        id: patient.blockchainId,
+        name: patient.name,
+        email: patient.email,
+        phone: patient.phone
+      });
+
+      if (blockchainResult.success) {
+        patient.blockchainRegistered = true;
+        patient.identityHash = blockchainResult.identityHash;
+        patient.registrationTxHash = blockchainResult.transactionHash;
+        await patient.save();
+      }
+
+      res.status(201).json(savedPatient);
+    } catch (mongoError) {
+      console.error('MongoDB error, using in-memory storage:', mongoError);
+      
+      // Fallback to in-memory storage
+      const patient = {
+        id: generateId(),
+        ...patientData
+      };
+      patients.push(patient);
+      res.status(201).json(patient);
+    }
+  } catch (error) {
+    console.error('Error creating patient:', error);
+    res.status(500).json({ error: 'Failed to create patient' });
+  }
+});
+
+app.get('/api/patients/:id', async (req, res) => {
+  try {
+    // Try MongoDB first
+    const mongoPatient = await Patient.findById(req.params.id);
+    if (mongoPatient) {
+      res.json(mongoPatient);
+      return;
+    }
+
+    // Fallback to in-memory
+    const patient = patients.find(p => p.id === req.params.id);
+    if (!patient) {
+      return res.status(404).json({ error: 'Patient not found' });
+    }
+    res.json(patient);
+  } catch (error) {
+    console.error('Error fetching patient:', error);
+    res.status(500).json({ error: 'Failed to fetch patient' });
+  }
+});
+
+app.put('/api/patients/:id', async (req, res) => {
+  try {
+    // Try MongoDB first
+    const mongoPatient = await Patient.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body, updatedAt: new Date() },
+      { new: true }
+    );
+    
+    if (mongoPatient) {
+      res.json(mongoPatient);
+      return;
+    }
+
+    // Fallback to in-memory
+    const index = patients.findIndex(p => p.id === req.params.id);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Patient not found' });
+    }
+    
+    patients[index] = { ...patients[index], ...req.body, updatedAt: new Date().toISOString() };
+    res.json(patients[index]);
+  } catch (error) {
+    console.error('Error updating patient:', error);
+    res.status(500).json({ error: 'Failed to update patient' });
+  }
+});
+
+// Enhanced Medical Records endpoints with blockchain integration
+app.get('/api/medical-records', async (req, res) => {
+  try {
+    const { patientId } = req.query;
+    let query = { isActive: true };
+    
+    if (patientId) {
+      query.patientId = patientId;
+    }
+
+    // Try MongoDB first
+    const mongoRecords = await MedicalRecord.find(query)
+      .populate('patientId', 'name')
+      .populate('doctorId', 'name')
+      .sort({ createdAt: -1 });
+
+    if (mongoRecords.length > 0) {
+      const recordsWithDetails = mongoRecords.map(record => ({
+        ...record.toObject(),
+        patientName: record.patientId?.name || 'Unknown',
+        doctorName: record.doctorId?.name || 'Unknown'
+      }));
+      res.json(recordsWithDetails);
+      return;
+    }
+
+    // Fallback to in-memory
+    let records = medicalRecords;
+    if (patientId) {
+      records = records.filter(r => r.patientId === patientId);
+    }
+    
+    const recordsWithDetails = records.map(record => {
+      const patient = patients.find(p => p.id === record.patientId);
+      const doctor = doctors.find(d => d.id === record.doctorId);
+      return {
+        ...record,
+        patientName: patient ? patient.name : 'Unknown',
+        doctorName: doctor ? doctor.name : 'Unknown'
+      };
+    });
+    
+    res.json(recordsWithDetails);
+  } catch (error) {
+    console.error('Error fetching medical records:', error);
+    res.status(500).json({ error: 'Failed to fetch medical records' });
+  }
+});
+
+app.post('/api/medical-records', async (req, res) => {
+  try {
+    const recordData = {
+      ...req.body,
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      // Create record in MongoDB
+      const medicalRecord = new MedicalRecord(recordData);
+      const savedRecord = await medicalRecord.save();
+
+      // Store hash on blockchain
+      const recordForBlockchain = {
+        patientId: savedRecord.patientId.toString(),
+        diagnosis: savedRecord.diagnosis,
+        treatment: savedRecord.treatment,
+        date: savedRecord.date,
+        type: savedRecord.recordType
+      };
+
+      const blockchainResult = await blockchainService.addMedicalRecord(recordForBlockchain);
+
+      if (blockchainResult.success) {
+        savedRecord.blockchainStored = true;
+        savedRecord.recordHash = blockchainResult.recordHash;
+        savedRecord.transactionHash = blockchainResult.transactionHash;
+        savedRecord.blockNumber = blockchainResult.blockNumber;
+        await savedRecord.save();
+      }
+
+      res.status(201).json(savedRecord);
+    } catch (mongoError) {
+      console.error('MongoDB error, using in-memory storage:', mongoError);
+      
+      // Fallback to in-memory storage
+      const record = {
+        id: generateId(),
+        ...recordData
+      };
+      medicalRecords.push(record);
+      res.status(201).json(record);
+    }
+  } catch (error) {
+    console.error('Error creating medical record:', error);
+    res.status(500).json({ error: 'Failed to create medical record' });
+  }
+});
+
+// All other existing endpoints remain the same for backward compatibility
 // Doctors
 app.get('/api/doctors', (req, res) => {
   res.json(doctors);
@@ -148,15 +304,6 @@ app.post('/api/doctors', (req, res) => {
   };
   
   doctors.push(doctor);
-  
-  // Add to blockchain
-  hmsBlockchain.addTransaction({
-    type: 'DOCTOR_REGISTERED',
-    doctorId: doctor.id,
-    data: doctor,
-    timestamp: new Date().toISOString()
-  });
-  
   res.status(201).json(doctor);
 });
 
@@ -183,15 +330,6 @@ app.post('/api/appointments', (req, res) => {
   };
   
   appointments.push(appointment);
-  
-  // Add to blockchain
-  hmsBlockchain.addTransaction({
-    type: 'APPOINTMENT_SCHEDULED',
-    appointmentId: appointment.id,
-    data: appointment,
-    timestamp: new Date().toISOString()
-  });
-  
   res.status(201).json(appointment);
 });
 
@@ -202,61 +340,10 @@ app.put('/api/appointments/:id', (req, res) => {
   }
   
   appointments[index] = { ...appointments[index], ...req.body, updatedAt: new Date().toISOString() };
-  
-  // Add to blockchain
-  hmsBlockchain.addTransaction({
-    type: 'APPOINTMENT_UPDATED',
-    appointmentId: req.params.id,
-    data: appointments[index],
-    timestamp: new Date().toISOString()
-  });
-  
   res.json(appointments[index]);
 });
 
-// Medical Records
-app.get('/api/medical-records', (req, res) => {
-  const { patientId } = req.query;
-  let records = medicalRecords;
-  
-  if (patientId) {
-    records = records.filter(r => r.patientId === patientId);
-  }
-  
-  const recordsWithDetails = records.map(record => {
-    const patient = patients.find(p => p.id === record.patientId);
-    const doctor = doctors.find(d => d.id === record.doctorId);
-    return {
-      ...record,
-      patientName: patient ? patient.name : 'Unknown',
-      doctorName: doctor ? doctor.name : 'Unknown'
-    };
-  });
-  
-  res.json(recordsWithDetails);
-});
-
-app.post('/api/medical-records', (req, res) => {
-  const record = {
-    id: generateId(),
-    ...req.body,
-    createdAt: new Date().toISOString()
-  };
-  
-  medicalRecords.push(record);
-  
-  // Add to blockchain
-  hmsBlockchain.addTransaction({
-    type: 'MEDICAL_RECORD_CREATED',
-    recordId: record.id,
-    data: record,
-    timestamp: new Date().toISOString()
-  });
-  
-  res.status(201).json(record);
-});
-
-// TECHNICIANS
+// Technicians
 app.get('/api/technicians', (req, res) => {
   res.json(technicians);
 });
@@ -269,14 +356,6 @@ app.post('/api/technicians', (req, res) => {
   };
   
   technicians.push(technician);
-  
-  hmsBlockchain.addTransaction({
-    type: 'TECHNICIAN_REGISTERED',
-    technicianId: technician.id,
-    data: technician,
-    timestamp: new Date().toISOString()
-  });
-  
   res.status(201).json(technician);
 });
 
@@ -287,18 +366,10 @@ app.put('/api/technicians/:id', (req, res) => {
   }
   
   technicians[index] = { ...technicians[index], ...req.body, updatedAt: new Date().toISOString() };
-  
-  hmsBlockchain.addTransaction({
-    type: 'TECHNICIAN_UPDATED',
-    technicianId: req.params.id,
-    data: technicians[index],
-    timestamp: new Date().toISOString()
-  });
-  
   res.json(technicians[index]);
 });
 
-// LAB TESTS
+// Lab Tests
 app.get('/api/lab-tests', (req, res) => {
   const { patientId } = req.query;
   let tests = labTests;
@@ -331,14 +402,6 @@ app.post('/api/lab-tests', (req, res) => {
   };
   
   labTests.push(labTest);
-  
-  hmsBlockchain.addTransaction({
-    type: 'LAB_TEST_ORDERED',
-    testId: labTest.id,
-    data: labTest,
-    timestamp: new Date().toISOString()
-  });
-  
   res.status(201).json(labTest);
 });
 
@@ -349,18 +412,10 @@ app.put('/api/lab-tests/:id', (req, res) => {
   }
   
   labTests[index] = { ...labTests[index], ...req.body, updatedAt: new Date().toISOString() };
-  
-  hmsBlockchain.addTransaction({
-    type: 'LAB_TEST_UPDATED',
-    testId: req.params.id,
-    data: labTests[index],
-    timestamp: new Date().toISOString()
-  });
-  
   res.json(labTests[index]);
 });
 
-// SURGERIES
+// Surgeries
 app.get('/api/surgeries', (req, res) => {
   const surgeriesWithDetails = surgeries.map(surgery => {
     const patient = patients.find(p => p.id === surgery.patientId);
@@ -383,14 +438,6 @@ app.post('/api/surgeries', (req, res) => {
   };
   
   surgeries.push(surgery);
-  
-  hmsBlockchain.addTransaction({
-    type: 'SURGERY_SCHEDULED',
-    surgeryId: surgery.id,
-    data: surgery,
-    timestamp: new Date().toISOString()
-  });
-  
   res.status(201).json(surgery);
 });
 
@@ -401,18 +448,10 @@ app.put('/api/surgeries/:id', (req, res) => {
   }
   
   surgeries[index] = { ...surgeries[index], ...req.body, updatedAt: new Date().toISOString() };
-  
-  hmsBlockchain.addTransaction({
-    type: 'SURGERY_UPDATED',
-    surgeryId: req.params.id,
-    data: surgeries[index],
-    timestamp: new Date().toISOString()
-  });
-  
   res.json(surgeries[index]);
 });
 
-// ADMISSIONS
+// Admissions
 app.get('/api/admissions', (req, res) => {
   const admissionsWithDetails = admissions.map(admission => {
     const patient = patients.find(p => p.id === admission.patientId);
@@ -438,20 +477,12 @@ app.post('/api/admissions', (req, res) => {
   
   admissions.push(admission);
   
-  // Update room status if roomId provided
   if (admission.roomId) {
     const roomIndex = rooms.findIndex(r => r.id === admission.roomId);
     if (roomIndex !== -1) {
       rooms[roomIndex].status = 'occupied';
     }
   }
-  
-  hmsBlockchain.addTransaction({
-    type: 'PATIENT_ADMITTED',
-    admissionId: admission.id,
-    data: admission,
-    timestamp: new Date().toISOString()
-  });
   
   res.status(201).json(admission);
 });
@@ -465,7 +496,6 @@ app.put('/api/admissions/:id', (req, res) => {
   const oldAdmission = { ...admissions[index] };
   admissions[index] = { ...admissions[index], ...req.body, updatedAt: new Date().toISOString() };
   
-  // Handle room status changes
   if (req.body.status === 'discharged' && oldAdmission.roomId) {
     const roomIndex = rooms.findIndex(r => r.id === oldAdmission.roomId);
     if (roomIndex !== -1) {
@@ -473,17 +503,10 @@ app.put('/api/admissions/:id', (req, res) => {
     }
   }
   
-  hmsBlockchain.addTransaction({
-    type: 'ADMISSION_UPDATED',
-    admissionId: req.params.id,
-    data: admissions[index],
-    timestamp: new Date().toISOString()
-  });
-  
   res.json(admissions[index]);
 });
 
-// BILLS
+// Bills
 app.get('/api/bills', (req, res) => {
   const { patientId } = req.query;
   let billList = bills;
@@ -512,14 +535,6 @@ app.post('/api/bills', (req, res) => {
   };
   
   bills.push(bill);
-  
-  hmsBlockchain.addTransaction({
-    type: 'BILL_GENERATED',
-    billId: bill.id,
-    data: bill,
-    timestamp: new Date().toISOString()
-  });
-  
   res.status(201).json(bill);
 });
 
@@ -530,18 +545,10 @@ app.put('/api/bills/:id', (req, res) => {
   }
   
   bills[index] = { ...bills[index], ...req.body, updatedAt: new Date().toISOString() };
-  
-  hmsBlockchain.addTransaction({
-    type: 'BILL_UPDATED',
-    billId: req.params.id,
-    data: bills[index],
-    timestamp: new Date().toISOString()
-  });
-  
   res.json(bills[index]);
 });
 
-// MEDICINES
+// Medicines
 app.get('/api/medicines', (req, res) => {
   res.json(medicines);
 });
@@ -554,14 +561,6 @@ app.post('/api/medicines', (req, res) => {
   };
   
   medicines.push(medicine);
-  
-  hmsBlockchain.addTransaction({
-    type: 'MEDICINE_ADDED',
-    medicineId: medicine.id,
-    data: medicine,
-    timestamp: new Date().toISOString()
-  });
-  
   res.status(201).json(medicine);
 });
 
@@ -572,18 +571,10 @@ app.put('/api/medicines/:id', (req, res) => {
   }
   
   medicines[index] = { ...medicines[index], ...req.body, updatedAt: new Date().toISOString() };
-  
-  hmsBlockchain.addTransaction({
-    type: 'MEDICINE_UPDATED',
-    medicineId: req.params.id,
-    data: medicines[index],
-    timestamp: new Date().toISOString()
-  });
-  
   res.json(medicines[index]);
 });
 
-// EQUIPMENT
+// Equipment
 app.get('/api/equipment', (req, res) => {
   res.json(equipment);
 });
@@ -597,14 +588,6 @@ app.post('/api/equipment', (req, res) => {
   };
   
   equipment.push(equipmentItem);
-  
-  hmsBlockchain.addTransaction({
-    type: 'EQUIPMENT_ADDED',
-    equipmentId: equipmentItem.id,
-    data: equipmentItem,
-    timestamp: new Date().toISOString()
-  });
-  
   res.status(201).json(equipmentItem);
 });
 
@@ -615,18 +598,10 @@ app.put('/api/equipment/:id', (req, res) => {
   }
   
   equipment[index] = { ...equipment[index], ...req.body, updatedAt: new Date().toISOString() };
-  
-  hmsBlockchain.addTransaction({
-    type: 'EQUIPMENT_UPDATED',
-    equipmentId: req.params.id,
-    data: equipment[index],
-    timestamp: new Date().toISOString()
-  });
-  
   res.json(equipment[index]);
 });
 
-// EMERGENCIES
+// Emergencies
 app.get('/api/emergencies', (req, res) => {
   const emergenciesWithDetails = emergencies.map(emergency => {
     const patient = patients.find(p => p.id === emergency.patientId);
@@ -649,14 +624,6 @@ app.post('/api/emergencies', (req, res) => {
   };
   
   emergencies.push(emergency);
-  
-  hmsBlockchain.addTransaction({
-    type: 'EMERGENCY_REPORTED',
-    emergencyId: emergency.id,
-    data: emergency,
-    timestamp: new Date().toISOString()
-  });
-  
   res.status(201).json(emergency);
 });
 
@@ -667,18 +634,10 @@ app.put('/api/emergencies/:id', (req, res) => {
   }
   
   emergencies[index] = { ...emergencies[index], ...req.body, updatedAt: new Date().toISOString() };
-  
-  hmsBlockchain.addTransaction({
-    type: 'EMERGENCY_UPDATED',
-    emergencyId: req.params.id,
-    data: emergencies[index],
-    timestamp: new Date().toISOString()
-  });
-  
   res.json(emergencies[index]);
 });
 
-// INVENTORY (Additional Feature)
+// Inventory
 app.get('/api/inventory', (req, res) => {
   res.json(inventory);
 });
@@ -691,14 +650,6 @@ app.post('/api/inventory', (req, res) => {
   };
   
   inventory.push(inventoryItem);
-  
-  hmsBlockchain.addTransaction({
-    type: 'INVENTORY_ADDED',
-    inventoryId: inventoryItem.id,
-    data: inventoryItem,
-    timestamp: new Date().toISOString()
-  });
-  
   res.status(201).json(inventoryItem);
 });
 
@@ -709,18 +660,10 @@ app.put('/api/inventory/:id', (req, res) => {
   }
   
   inventory[index] = { ...inventory[index], ...req.body, updatedAt: new Date().toISOString() };
-  
-  hmsBlockchain.addTransaction({
-    type: 'INVENTORY_UPDATED',
-    inventoryId: req.params.id,
-    data: inventory[index],
-    timestamp: new Date().toISOString()
-  });
-  
   res.json(inventory[index]);
 });
 
-// ROOMS (Additional Feature)
+// Rooms
 app.get('/api/rooms', (req, res) => {
   res.json(rooms);
 });
@@ -734,14 +677,6 @@ app.post('/api/rooms', (req, res) => {
   };
   
   rooms.push(room);
-  
-  hmsBlockchain.addTransaction({
-    type: 'ROOM_ADDED',
-    roomId: room.id,
-    data: room,
-    timestamp: new Date().toISOString()
-  });
-  
   res.status(201).json(room);
 });
 
@@ -752,81 +687,56 @@ app.put('/api/rooms/:id', (req, res) => {
   }
   
   rooms[index] = { ...rooms[index], ...req.body, updatedAt: new Date().toISOString() };
-  
-  hmsBlockchain.addTransaction({
-    type: 'ROOM_UPDATED',
-    roomId: req.params.id,
-    data: rooms[index],
-    timestamp: new Date().toISOString()
-  });
-  
   res.json(rooms[index]);
 });
 
-// Blockchain endpoints
-app.get('/api/blockchain', (req, res) => {
-  res.json(hmsBlockchain.getChain());
-});
-
-app.get('/api/blockchain/verify', (req, res) => {
-  const chain = hmsBlockchain.getChain();
-  let isValid = true;
-  
-  for (let i = 1; i < chain.length; i++) {
-    const currentBlock = chain[i];
-    const previousBlock = chain[i - 1];
+// Dashboard stats with blockchain integration
+app.get('/api/stats', async (req, res) => {
+  try {
+    // Get blockchain stats
+    const blockchainStats = await blockchainService.getBlockchainStats();
     
-    if (currentBlock.hash !== currentBlock.calculateHash()) {
-      isValid = false;
-      break;
-    }
+    const stats = {
+      totalPatients: patients.length,
+      totalDoctors: doctors.length,
+      totalTechnicians: technicians.length,
+      totalAppointments: appointments.length,
+      totalMedicalRecords: medicalRecords.length,
+      totalLabTests: labTests.length,
+      totalSurgeries: surgeries.length,
+      totalAdmissions: admissions.length,
+      totalBills: bills.length,
+      totalMedicines: medicines.length,
+      totalEquipment: equipment.length,
+      totalEmergencies: emergencies.length,
+      totalInventoryItems: inventory.length,
+      totalRooms: rooms.length,
+      recentAppointments: appointments.slice(-5).map(apt => {
+        const patient = patients.find(p => p.id === apt.patientId);
+        const doctor = doctors.find(d => d.id === apt.doctorId);
+        return {
+          ...apt,
+          patientName: patient ? patient.name : 'Unknown',
+          doctorName: doctor ? doctor.name : 'Unknown'
+        };
+      }),
+      activeEmergencies: emergencies.filter(e => e.status === 'active').length,
+      pendingBills: bills.filter(b => b.status === 'pending').length,
+      availableRooms: rooms.filter(r => r.status === 'available').length,
+      occupiedRooms: rooms.filter(r => r.status === 'occupied').length,
+      
+      // Blockchain stats
+      blockchain: blockchainStats.success ? blockchainStats.stats : null
+    };
     
-    if (currentBlock.previousHash !== previousBlock.hash) {
-      isValid = false;
-      break;
-    }
+    res.json(stats);
+  } catch (error) {
+    console.error('Error getting stats:', error);
+    res.status(500).json({ error: 'Failed to get stats' });
   }
-  
-  res.json({ isValid, blockCount: chain.length });
 });
 
-// Dashboard stats
-app.get('/api/stats', (req, res) => {
-  const stats = {
-    totalPatients: patients.length,
-    totalDoctors: doctors.length,
-    totalTechnicians: technicians.length,
-    totalAppointments: appointments.length,
-    totalMedicalRecords: medicalRecords.length,
-    totalLabTests: labTests.length,
-    totalSurgeries: surgeries.length,
-    totalAdmissions: admissions.length,
-    totalBills: bills.length,
-    totalMedicines: medicines.length,
-    totalEquipment: equipment.length,
-    totalEmergencies: emergencies.length,
-    totalInventoryItems: inventory.length,
-    totalRooms: rooms.length,
-    blockchainBlocks: hmsBlockchain.getChain().length,
-    recentAppointments: appointments.slice(-5).map(apt => {
-      const patient = patients.find(p => p.id === apt.patientId);
-      const doctor = doctors.find(d => d.id === apt.doctorId);
-      return {
-        ...apt,
-        patientName: patient ? patient.name : 'Unknown',
-        doctorName: doctor ? doctor.name : 'Unknown'
-      };
-    }),
-    activeEmergencies: emergencies.filter(e => e.status === 'active').length,
-    pendingBills: bills.filter(b => b.status === 'pending').length,
-    availableRooms: rooms.filter(r => r.status === 'available').length,
-    occupiedRooms: rooms.filter(r => r.status === 'occupied').length
-  };
-  
-  res.json(stats);
-});
-
-// Search endpoint (Additional Feature)
+// Search endpoint
 app.get('/api/search', (req, res) => {
   const { query, type } = req.query;
   let results = [];
@@ -869,5 +779,5 @@ app.get('/api/search', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`HMS Backend Server running on port ${PORT}`);
-  console.log(`Blockchain initialized with ${hmsBlockchain.getChain().length} blocks`);
+  console.log(`Blockchain integration ${process.env.HMS_CONTRACT_ADDRESS ? 'enabled' : 'disabled'}`);
 });
