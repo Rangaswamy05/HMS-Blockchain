@@ -97,7 +97,7 @@ export const Patients = () => {
         <div className="relative z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4 mb-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-black to-blue-800 rounded-2xl flex items-center border-blue-500 justify-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-black to-blue-800 rounded-2xl flex items-center border border-blue-500 justify-center">
                 <Users className="h-8 w-8 text-white" />
               </div>
               <div>
@@ -395,7 +395,7 @@ export const Patients = () => {
           </div>
         ) : (
           <div className="text-center py-16">
-            <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <div className="w-24 h-24 bg-gradient-to-r from-black to-blue-800 border border-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
               <Users className="h-12 w-12 text-white" />
             </div>
             <h3 className="text-2xl font-bold text-white mb-2">No patients found</h3>
@@ -405,8 +405,9 @@ export const Patients = () => {
             {!searchTerm && (
               <button
                 onClick={() => setShowForm(true)}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-8 py-3 rounded-xl font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center gap-2 mx-auto"
+                className="bg-gradient-to-r from-black to-blue-800 text-white px-6 py-3 rounded-xl font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center gap-2 border border-blue-500 mx-auto"
               >
+                
                 <Plus className="h-5 w-5" />
                 Add First Patient
               </button>

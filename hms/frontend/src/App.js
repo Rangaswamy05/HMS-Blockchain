@@ -46,15 +46,15 @@ const HMSApp = () => {
 
   const navigation = [
     { id: "dashboard", label: "Dashboard", icon: Activity, color: "from-black to-purple-600" },
-    { id: "patients", label: "Patients", icon: Users, color: "from-black to-teal-600" },
-    { id: "doctors", label: "Doctors", icon: Stethoscope, color: "from-black to-indigo-600" },
-    { id: "technicians", label: "Technicians", icon: Wrench, color: "from-black to-red-600" },
-    { id: "admission", label: "Admissions", icon: Save, color: "from-black to-pink-600" },
-    { id: "appointments", label: "Appointments", icon: Calendar, color: "from-black to-orange-600" },
-    { id: "rooms", label: "Rooms", icon: BedDouble, color: "from-black to-blue-600" },
+    { id: "patients", label: "Patients", icon: Users, color: "from-black to-blue-600" },
+    { id: "doctors", label: "Doctors", icon: Stethoscope, color: "from-black to-emerald-500" },
+    { id: "technicians", label: "Technicians", icon: Wrench, color: "from-black to-purple-600 " },
+    { id: "admission", label: "Admissions", icon: Save, color: "from-black to-purple-600" },
+    { id: "appointments", label: "Appointments", icon: Calendar, color: "from-black to-blue-600" },
+    { id: "rooms", label: "Rooms", icon: BedDouble, color: "from-black to-purple-600" },
     { id: "emergencies", label: "Emergencies", icon: AlertTriangle, color: "from-black to-pink-600" },
     { id: "records", label: "Medical Records", icon: FileText, color: "from-black to-purple-600" },
-    { id: "labtest", label: "Lab Tests", icon: Pill, color: "from-black to-green-600" },
+    { id: "labtest", label: "Lab Tests", icon: Pill, color: "from-black to-purple-600" },
     { id: "surgery", label: "Surgeries", icon: Scissors, color: "from-black to-rose-600" },
     { id: "medicines", label: "Medicines", icon: Pill, color: "from-black to-teal-600" },
     { id: "equipment", label: "Equipment", icon: Wrench, color: "from-black to-gray-600" },
@@ -113,12 +113,14 @@ const HMSApp = () => {
 
       {/* Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-black to-black backdrop-blur-xl border-r border-gray-700/50 shadow-2xl
-          transform ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-          transition-all duration-500 ease-out lg:translate-x-0 lg:static lg:shadow-none
-        `}
+       className={`fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-black to-black backdrop-blur-xl border-r border-purple-700/50 
+  shadow-[0_0_20px_4px_rgba(147,51,234,0.5)] transform 
+  ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} 
+  transition-all duration-500 ease-out 
+  lg:translate-x-0 lg:static lg:shadow-none`}
+
       >
-        <div className="flex items-center justify-between h-20 px-6 border-b border-gray-700/50">
+        <div className="flex items-center justify-between h-20 px-6 border-b border-purple-700/50">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-br from-black to-purple-800 rounded-xl flex items-center justify-center">
               <Activity className="h-6 w-6 text-white" />
@@ -167,7 +169,7 @@ const HMSApp = () => {
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-700/50">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-purple-700/50">
           
         </div>
       </div>
@@ -175,7 +177,7 @@ const HMSApp = () => {
       {/* Main content area */}
       <div className="flex-1 flex flex-col relative">
         {/* Top nav */}
-                <header className="bg-black backdrop-blur-xl border-b border-gray-700/50 shadow-lg relative z-10">
+                <header className="bg-black backdrop-blur-xl border-b border-purple-700/50 shadow-lg relative z-10">
           <div className="flex items-center justify-between h-20 px-6">
             <div className="flex items-center space-x-4">
               <button
@@ -186,7 +188,7 @@ const HMSApp = () => {
               </button>
 
               <div className="hidden sm:block">
-                <h2 className="text-2xl font-bold bg-gradient-to-r from-white via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-white via-purple-800 to-purple-900 bg-clip-text text-transparent">
                   {navigation.find((item) => item.id === currentView)?.label || "Dashboard"}
                 </h2>
                 <p className="text-sm text-gray-400 mt-1">Manage your hospital operations efficiently</p>
@@ -196,22 +198,22 @@ const HMSApp = () => {
             <div className="flex items-center space-x-4">
               {/* Search */}
               <div className="hidden md:flex items-center space-x-2 bg-black rounded-xl px-4 py-2 border border-gray-700/50">
-                <Search className="h-4 w-4 text-gray-400" />
+                <Search className="h-4 w-4 text-purple-400" />
                 <input
                   type="text"
                   placeholder="Search..."
-                  className="bg-transparent text-sm text-white placeholder-gray-400 focus:outline-none w-40"
+                  className="bg-transparent text-sm text-purple-400 placeholder-purple-300 focus:outline-none w-40"
                 />
               </div>
 
               {/* Notifications */}
-              <button className="relative p-2 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-gray-800/50">
+              <button className="relative p-2 text-purple-500 hover:text-white transition-colors rounded-lg hover:bg-gray-800/50">
                 <Bell className="h-5 w-5" />
                 <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
               </button>
 
               {/* Date */}
-              <div className="hidden lg:block text-sm text-gray-400 bg-black px-4 py-2 rounded-xl border border-gray-700/50">
+              <div className="hidden lg:block text-sm text-purple-300 bg-black px-4 py-2 rounded-xl border border-gray-700/50">
                 {new Date().toLocaleDateString("en-US", {
                   weekday: "short",
                   month: "short",
@@ -222,9 +224,9 @@ const HMSApp = () => {
               {/* Profile */}
               <div className="relative group cursor-pointer">
                 <div className="flex items-center space-x-2 p-2 rounded-xl hover:bg-gray-800/50 transition-colors">
-                  <UserCircle className="h-8 w-8 text-blue-400" />
+                  <UserCircle className="h-8 w-8 text-purple-400" />
                   <div className="hidden sm:block">
-                    <p className="text-sm font-medium text-white">Dr. Admin</p>
+                          <p className="text-sm font-medium text-purple-300">Dr. Admin</p>
                     <p className="text-xs text-gray-400">Online</p>
                   </div>
                 </div>

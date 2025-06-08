@@ -12,7 +12,11 @@ import {
   DollarSign,
   Calendar,
   User,
-  Filter
+  Filter,
+  TrendingUp,
+  Clock,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 
 export const Bills = () => {
@@ -139,33 +143,108 @@ export const Bills = () => {
   if (loading) return <LoadingSpinner message="Loading bills..." />;
 
   return (
-    <div className="p-6 fade-in">
+    <div className="space-y-8 animate-fadeIn">
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
       
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Bills Management</h1>
-          <p className="text-gray-600">Manage patient billing and invoices</p>
+      {/* Header Section */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-black to-black backdrop-blur-xl rounded-3xl border border-gray-700 p-8 hover:border-gray-600/50 transition-all duration-500">
+        <div className="relative z-10">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex items-center space-x-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center">
+                <Receipt className="h-8 w-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-purple-400 to-purple-600 bg-clip-text text-transparent">
+                  Bills Management
+                </h1>
+                <p className="text-gray-300 text-lg">
+                  Manage patient billing and invoices with precision
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-3 rounded-xl font-medium hover:from-purple-700 hover:to-purple-800 transition-all duration-300 hover:scale-105 hover:shadow-lg"
+            >
+              <Plus className="h-5 w-5" />
+              Create Bill
+            </button>
+            
+          </div>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Create Bill
-        </button>
       </div>
-
+{/* Summary Cards */}
+      {bills.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="group bg-gradient-to-br from-black to-black backdrop-blur-xl rounded-2xl border border-gray-700 p-6 hover:border-gray-600/50 transition-all duration-500 hover:scale-105">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                <Receipt className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <div className="text-sm text-gray-400">Total Bills</div>
+                <div className="text-2xl font-bold text-white">{bills.length}</div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="group bg-gradient-to-br from-black to-black backdrop-blur-xl rounded-2xl border border-gray-700 p-6 hover:border-gray-600/50 transition-all duration-500 hover:scale-105">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center">
+                <DollarSign className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <div className="text-sm text-gray-400">Total Amount</div>
+                <div className="text-2xl font-bold text-green-400">
+                  {formatCurrency(bills.reduce((sum, bill) => sum + (bill.amount || 0), 0))}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="group bg-gradient-to-br from-black to-black backdrop-blur-xl rounded-2xl border border-gray-700 p-6 hover:border-gray-600/50 transition-all duration-500 hover:scale-105">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center">
+                <CheckCircle className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <div className="text-sm text-gray-400">Paid Bills</div>
+                <div className="text-2xl font-bold text-emerald-400">
+                  {bills.filter(bill => bill.status === 'paid').length}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="group bg-gradient-to-br from-black to-black backdrop-blur-xl rounded-2xl border border-gray-700 p-6 hover:border-gray-600/50 transition-all duration-500 hover:scale-105">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl flex items-center justify-center">
+                <Clock className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <div className="text-sm text-gray-400">Pending Bills</div>
+                <div className="text-2xl font-bold text-yellow-400">
+                  {bills.filter(bill => bill.status === 'pending').length}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    
       {/* Filter Section */}
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+      <div className="bg-gradient-to-br from-black to-black backdrop-blur-xl rounded-2xl border border-gray-700 p-6 hover:border-gray-600/50 transition-all duration-500">
         <div className="flex items-center gap-4">
-          <Filter className="h-5 w-5 text-gray-400" />
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">Filter by Patient:</label>
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+            <Filter className="h-5 w-5 text-white" />
+          </div>
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-medium text-gray-300">Filter by Patient:</label>
             <select
               value={filterPatientId}
               onChange={(e) => setFilterPatientId(e.target.value)}
-              className="form-select w-48"
+              className="bg-black border border-gray-600 text-white px-4 py-2 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all duration-300 w-48"
             >
               <option value="">All Patients</option>
               {patients.map((patient) => (
@@ -178,7 +257,7 @@ export const Bills = () => {
           {filterPatientId && (
             <button
               onClick={() => setFilterPatientId('')}
-              className="text-sm text-blue-600 hover:text-blue-800"
+              className="text-sm text-purple-400 hover:text-purple-300 transition-colors duration-300"
             >
               Clear Filter
             </button>
@@ -188,79 +267,54 @@ export const Bills = () => {
 
       {/* Bill Form Modal */}
       {showForm && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold">
-                {editingBill ? 'Edit Bill' : 'Create New Bill'}
-              </h2>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-gradient-to-br from-black to-black backdrop-blur-xl rounded-3xl border border-gray-700 p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-8">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center">
+                  <Receipt className="h-6 w-6 text-white" />
+                </div>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-white via-purple-400 to-purple-600 bg-clip-text text-transparent">
+                  {editingBill ? 'Edit Bill' : 'Create New Bill'}
+                </h2>
+              </div>
               <button
                 onClick={resetForm}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-400 hover:text-white transition-colors duration-300 p-2 hover:bg-gray-800 rounded-lg"
               >
                 <X className="h-6 w-6" />
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Patient *
-                </label>
-                <select
-                  value={formData.patientId}
-                  onChange={(e) => setFormData({...formData, patientId: e.target.value})}
-                  className="form-select"
-                  required
-                >
-                  <option value="">Select Patient</option>
-                  {patients.map((patient) => (
-                    <option key={patient.id} value={patient.id}>
-                      {patient.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description *
-                </label>
-                <textarea
-                  placeholder="Enter bill description or services provided"
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="form-input"
-                  rows="3"
-                  required
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Amount *
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Patient *
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({...formData, amount: e.target.value})}
-                    className="form-input"
+                  <select
+                    value={formData.patientId}
+                    onChange={(e) => setFormData({...formData, patientId: e.target.value})}
+                    className="w-full bg-black border border-gray-600 text-white px-4 py-3 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all duration-300"
                     required
-                  />
+                  >
+                    <option value="">Select Patient</option>
+                    {patients.map((patient) => (
+                      <option key={patient.id} value={patient.id}>
+                        {patient.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
                     Bill Type
                   </label>
                   <select
                     value={formData.billType}
                     onChange={(e) => setFormData({...formData, billType: e.target.value})}
-                    className="form-select"
+                    className="w-full bg-black border border-gray-600 text-white px-4 py-3 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all duration-300"
                   >
                     <option value="">Select Type</option>
                     <option value="Consultation">Consultation</option>
@@ -275,27 +329,57 @@ export const Bills = () => {
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Description *
+                </label>
+                <textarea
+                  placeholder="Enter bill description or services provided"
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  className="w-full bg-black border border-gray-600 text-white px-4 py-3 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all duration-300 resize-none"
+                  rows="4"
+                  required
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Amount *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={formData.amount}
+                    onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                    className="w-full bg-black border border-gray-600 text-white px-4 py-3 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all duration-300"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
                     Due Date
                   </label>
                   <input
                     type="date"
                     value={formData.dueDate}
                     onChange={(e) => setFormData({...formData, dueDate: e.target.value})}
-                    className="form-input"
+                    className="w-full bg-black border border-gray-600 text-white px-4 py-3 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all duration-300"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
                     Status
                   </label>
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({...formData, status: e.target.value})}
-                    className="form-select"
+                    className="w-full bg-black border border-gray-600 text-white px-4 py-3 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all duration-300"
                   >
                     <option value="pending">Pending</option>
                     <option value="paid">Paid</option>
@@ -305,15 +389,18 @@ export const Bills = () => {
                 </div>
               </div>
               
-              <div className="flex gap-3 pt-4">
-                <button type="submit" className="btn-primary flex items-center gap-2">
-                  <Save className="h-4 w-4" />
+              <div className="flex gap-4 pt-6">
+                <button 
+                  type="submit" 
+                  className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-3 rounded-xl font-medium hover:from-purple-700 hover:to-purple-800 transition-all duration-300 hover:scale-105 hover:shadow-lg"
+                >
+                  <Save className="h-5 w-5" />
                   {editingBill ? 'Update' : 'Create'} Bill
                 </button>
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="btn-secondary"
+                  className="px-6 py-3 bg-gray-800 text-white rounded-xl font-medium hover:bg-gray-700 transition-all duration-300"
                 >
                   Cancel
                 </button>
@@ -324,82 +411,91 @@ export const Bills = () => {
       )}
 
       {/* Bills Table */}
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+      <div className="bg-gradient-to-br from-black to-black backdrop-blur-xl rounded-2xl border border-gray-700 overflow-hidden hover:border-gray-600/50 transition-all duration-500">
         {bills.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="table">
-              <thead>
+            <table className="w-full">
+              <thead className="bg-black/50 border-b border-gray-700">
                 <tr>
-                  <th>Bill ID</th>
-                  <th>Patient</th>
-                  <th>Description</th>
-                  <th>Amount</th>
-                  <th>Type</th>
-                  <th>Due Date</th>
-                  <th>Status</th>
-                  <th>Created</th>
-                  <th>Actions</th>
+                  <th className="text-left p-4 text-gray-300 font-medium">Bill ID</th>
+                  <th className="text-left p-4 text-gray-300 font-medium">Patient</th>
+                  <th className="text-left p-4 text-gray-300 font-medium">Description</th>
+                  <th className="text-left p-4 text-gray-300 font-medium">Amount</th>
+                  <th className="text-left p-4 text-gray-300 font-medium">Type</th>
+                  <th className="text-left p-4 text-gray-300 font-medium">Due Date</th>
+                  <th className="text-left p-4 text-gray-300 font-medium">Status</th>
+                  <th className="text-left p-4 text-gray-300 font-medium">Created</th>
+                  <th className="text-left p-4 text-gray-300 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {bills.map((bill) => (
-                  <tr key={bill.id}>
-                    <td>
-                      <div className="font-mono text-sm text-gray-600">
+                {bills.map((bill, idx) => (
+                  <tr 
+                    key={bill.id} 
+                    className="border-b border-gray-800 hover:bg-gray-900/50 transition-colors duration-300"
+                    style={{ animationDelay: `${idx * 100}ms` }}
+                  >
+                    <td className="p-4">
+                      <div className="font-mono text-sm text-gray-400">
                         #{bill.id?.slice(-8)}
                       </div>
                     </td>
-                    <td>
+                    <td className="p-4">
                       <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-gray-400" />
-                        <span className="font-medium text-gray-900">
+                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                          <User className="h-4 w-4 text-white" />
+                        </div>
+                        <span className="font-medium text-white">
                           {bill.patientName || 'Unknown Patient'}
                         </span>
                       </div>
                     </td>
-                    <td>
-                      <div className="text-sm text-gray-600 max-w-xs truncate">
+                    <td className="p-4">
+                      <div className="text-sm text-gray-300 max-w-xs truncate">
                         {bill.description}
                       </div>
                     </td>
-                    <td>
+                    <td className="p-4">
                       <div className="flex items-center gap-1">
-                        <DollarSign className="h-4 w-4 text-green-600" />
-                        <span className="font-semibold text-green-600">
+                        <DollarSign className="h-4 w-4 text-green-400" />
+                        <span className="font-semibold text-green-400">
                           {formatCurrency(bill.amount)}
                         </span>
                       </div>
                     </td>
-                    <td>
-                      <span className="text-sm text-gray-600">
+                    <td className="p-4">
+                      <span className="text-sm text-gray-300">
                         {bill.billType || 'Not specified'}
                       </span>
                     </td>
-                    <td>
-                      <div className="flex items-center gap-1 text-sm">
+                    <td className="p-4">
+                      <div className="flex items-center gap-1 text-sm text-gray-300">
                         <Calendar className="h-3 w-3 text-gray-400" />
                         <span>{formatDate(bill.dueDate)}</span>
                       </div>
                     </td>
-                    <td>
-                      <span className={`badge ${
-                        bill.status === 'paid' ? 'badge-success' :
-                        bill.status === 'pending' ? 'badge-warning' :
-                        bill.status === 'overdue' ? 'badge-danger' :
-                        'badge-secondary'
+                    <td className="p-4">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        bill.status === 'paid' ? 'bg-green-500/20 text-green-400' :
+                        bill.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                        bill.status === 'overdue' ? 'bg-red-500/20 text-red-400' :
+                        'bg-gray-500/20 text-gray-400'
                       }`}>
+                        {bill.status === 'paid' && <CheckCircle className="h-3 w-3 mr-1" />}
+                        {bill.status === 'overdue' && <AlertCircle className="h-3 w-3 mr-1" />}
+                        {bill.status === 'pending' && <Clock className="h-3 w-3 mr-1" />}
                         {bill.status}
                       </span>
                     </td>
-                    <td>
-                      <span className="text-sm text-gray-500">
+                    <td className="p-4">
+                      <span className="text-sm text-gray-400">
                         {formatDate(bill.createdAt)}
                       </span>
                     </td>
-                    <td>
+                    <td className="p-4">
                       <button
                         onClick={() => handleEdit(bill)}
-                        className="text-blue-600 hover:text-blue-800 p-1 rounded"
+                        className="text-purple-400 hover:text-purple-300 p-2 rounded-lg hover:bg-gray-800 transition-all duration-300"
                         title="Edit Bill"
                       >
                         <Edit className="h-4 w-4" />
@@ -411,15 +507,17 @@ export const Bills = () => {
             </table>
           </div>
         ) : (
-          <div className="text-center py-12">
-            <Receipt className="h-16 w-16 mx-auto text-gray-300 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No bills found</h3>
-            <p className="text-gray-500 mb-6">
+          <div className="text-center py-16">
+            <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <Receipt className="h-10 w-10 text-white" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">No bills found</h3>
+            <p className="text-gray-400 mb-8">
               {filterPatientId ? 'No bills found for the selected patient.' : 'Create your first bill to get started.'}
             </p>
             <button
               onClick={() => setShowForm(true)}
-              className="btn-primary"
+              className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-3 rounded-xl font-medium hover:from-purple-700 hover:to-purple-800 transition-all duration-300 hover:scale-105 hover:shadow-lg"
             >
               Create First Bill
             </button>
@@ -427,33 +525,6 @@ export const Bills = () => {
         )}
       </div>
 
-      {/* Summary Cards */}
-      {bills.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
-          <div className="bg-white p-4 rounded-lg shadow-sm">
-            <div className="text-sm text-gray-500">Total Bills</div>
-            <div className="text-2xl font-bold text-gray-900">{bills.length}</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm">
-            <div className="text-sm text-gray-500">Total Amount</div>
-            <div className="text-2xl font-bold text-green-600">
-              {formatCurrency(bills.reduce((sum, bill) => sum + (bill.amount || 0), 0))}
-            </div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm">
-            <div className="text-sm text-gray-500">Paid Bills</div>
-            <div className="text-2xl font-bold text-green-600">
-              {bills.filter(bill => bill.status === 'paid').length}
-            </div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm">
-            <div className="text-sm text-gray-500">Pending Bills</div>
-            <div className="text-2xl font-bold text-yellow-600">
-              {bills.filter(bill => bill.status === 'pending').length}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
   );
 };

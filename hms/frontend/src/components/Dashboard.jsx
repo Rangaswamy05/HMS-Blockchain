@@ -372,6 +372,6 @@ export const Dashboard = ({ onNavigate }) => {
           </div>
         </div>
       </div>
-    </div>
+    </div>  
   )
 }

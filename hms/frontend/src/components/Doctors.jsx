@@ -116,11 +116,11 @@ export const Doctors = () => {
         <div className="relative z-10">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center border border-emerald-400/20">
+              <div className="w-16 h-16 bg-gradient-to-br from-black to-emerald-600 rounded-2xl border border-emerald-500 flex items-center justify-center border border-emerald-400/20">
                 <Stethoscope className="h-8 w-8 text-white" />
               </div>
               <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-emerald-400 to-emerald-600 bg-clip-text text-transparent">
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-emerald-400  to-emerald-600 bg-clip-text text-transparent">
                   Medical Professionals
                 </h1>
                 <p className="text-gray-300 text-lg mt-2">
@@ -131,7 +131,7 @@ export const Doctors = () => {
             
             <button
               onClick={() => setShowForm(true)}
-              className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-medium rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/25"
+              className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-black to-emerald-600 border border-emerald-500 text-white font-medium rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/25"
             >
               <Plus className="h-5 w-5" />
               <span>Add Doctor</span>
@@ -300,7 +300,7 @@ export const Doctors = () => {
               <div className="flex gap-4 pt-6">
                 <button 
                   type="submit" 
-                  className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-medium rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/25"
+                  className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-white-500 to-emerald-600 text-white font-medium rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/25"
                 >
                   <Save className="h-4 w-4" />
                   <span>{editingDoctor ? 'Update' : 'Add'} Doctor</span>
@@ -404,7 +404,7 @@ export const Doctors = () => {
               {!searchTerm && (
                 <button
                   onClick={() => setShowForm(true)}
-                  className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-medium rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/25 mx-auto"
+                  className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-black  to-emerald-600 border border-emerald-500 text-white font-medium rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/25 mx-auto"
                 >
                   <Plus className="h-5 w-5" />
                   <span>Add First Doctor</span>
