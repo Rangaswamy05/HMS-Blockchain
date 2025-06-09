@@ -42,11 +42,26 @@ export const Blockchain = () => {
     try {
       setLoading(true);
       
-      // Fetch blockchain stats from backend
-      const statsResponse = await api.get('/blockchain/stats');
-      if (statsResponse.success) {
-        setBlockchainStats(statsResponse.stats);
-        setVerification({ isValid: true, blockCount: statsResponse.stats.totalRecords });
+      // Try to get stats from blockchain service first
+      if (blockchainService.isConnected()) {
+        const result = await blockchainService.getBlockchainStats();
+        if (result.success) {
+          setBlockchainStats(result.stats);
+          setVerification({ isValid: true, blockCount: result.stats.totalRecords });
+        } else {
+          console.warn('Blockchain service error:', result.error);
+        }
+      }
+      
+      // Fallback to backend API
+      try {
+        const statsResponse = await api.get('/blockchain/stats');
+        if (statsResponse.success) {
+          setBlockchainStats(statsResponse.stats);
+          setVerification({ isValid: true, blockCount: statsResponse.stats.totalRecords });
+        }
+      } catch (backendError) {
+        console.warn('Backend blockchain API not available:', backendError);
       }
       
       setError(null);
@@ -68,17 +83,23 @@ export const Blockchain = () => {
     setVerifyResult(null);
 
     try {
+      let result;
+      
       // Try frontend verification first if connected
       if (blockchainService.isConnected()) {
-        const result = await blockchainService.verifyRecord(verifyHash);
-        setVerifyResult(result);
+        result = await blockchainService.verifyRecord(verifyHash);
       } else {
         // Fallback to backend verification
-        const result = await api.post('/blockchain/verify-record', { recordHash: verifyHash });
-        setVerifyResult(result);
+        try {
+          result = await api.post('/blockchain/verify-record', { recordHash: verifyHash });
+        } catch (backendError) {
+          throw new Error('Blockchain verification not available. Please connect your wallet or ensure the backend is running.');
+        }
       }
+      
+      setVerifyResult(result);
     } catch (error) {
-      setError('Failed to verify record');
+      setError(error.message || 'Failed to verify record');
       console.error('Error verifying record:', error);
     } finally {
       setVerifyLoading(false);
@@ -92,8 +113,12 @@ export const Blockchain = () => {
       if (blockchainService.isConnected()) {
         result = await blockchainService.getRecordDetails(recordHash);
       } else {
-        const response = await api.get(`/blockchain/record/${recordHash}`);
-        result = response;
+        try {
+          const response = await api.get(`/blockchain/record/${recordHash}`);
+          result = response;
+        } catch (backendError) {
+          throw new Error('Record details not available. Please connect your wallet or ensure the backend is running.');
+        }
       }
 
       if (result.success) {
@@ -102,7 +127,7 @@ export const Blockchain = () => {
         setError(result.error || 'Failed to get record details');
       }
     } catch (error) {
-      setError('Failed to get record details');
+      setError(error.message || 'Failed to get record details');
       console.error('Error getting record details:', error);
     }
   };
@@ -119,10 +144,10 @@ export const Blockchain = () => {
 
   return (
     <div className="space-y-8 animate-fadeIn">
-      {error && <Alert type="error\" message={error} onClose={() => setError(null)} />}
+      {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
       
       {/* Hero Section */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-black to-black backdrop-blur-xl rounded-3xl border border-white p-8 hover:border-gray-600/50 transition-all duration-500 hover:scale-10 hover:shadow-2xl hover:shadow-purple-500/10">
+      <div className="relative overflow-hidden bg-gradient-to-br from-black to-black backdrop-blur-xl rounded-3xl border border-white p-8 hover:border-gray-600/50 transition-all duration-500 hover:scale-[1.01] hover:shadow-2xl hover:shadow-purple-500/10">
         <div className="absolute inset-0 bg-gradient-to-r from-black to-black border-white"></div>
         <div className="relative z-10">
           <div className="flex items-center justify-between">
@@ -370,7 +395,7 @@ export const Blockchain = () => {
                     </button>
                     {blockchainStats?.network && (
                       <a
-                        href={`${blockchainStats.network.blockExplorerUrls?.[0]}address/${selectedRecord.authorizedBy}`}
+                        href={blockchainService.getExplorerUrl(selectedRecord.authorizedBy)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-gray-400 hover:text-white transition-colors"

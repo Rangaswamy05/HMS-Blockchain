@@ -7,7 +7,8 @@ import {
   ExternalLink,
   RefreshCw,
   Copy,
-  Eye
+  Eye,
+  Settings
 } from 'lucide-react';
 import blockchainService from '../services/blockchainService';
 
@@ -18,10 +19,20 @@ export const BlockchainStatus = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [isEnabled, setIsEnabled] = useState(false);
 
   useEffect(() => {
-    checkConnection();
+    checkBlockchainStatus();
   }, []);
+
+  const checkBlockchainStatus = () => {
+    const enabled = blockchainService.isBlockchainEnabled();
+    setIsEnabled(enabled);
+    
+    if (enabled) {
+      checkConnection();
+    }
+  };
 
   const checkConnection = async () => {
     if (blockchainService.isConnected()) {
@@ -36,6 +47,8 @@ export const BlockchainStatus = () => {
       const result = await blockchainService.getBlockchainStats();
       if (result.success) {
         setStats(result.stats);
+      } else {
+        console.warn('Failed to fetch blockchain stats:', result.error);
       }
     } catch (error) {
       console.error('Error fetching blockchain stats:', error);
@@ -70,6 +83,33 @@ export const BlockchainStatus = () => {
     return blockchainService.formatAddress(address);
   };
 
+  // If blockchain is disabled, show disabled state
+  if (!isEnabled) {
+    return (
+      <div className="bg-gradient-to-br from-gray-900 to-black backdrop-blur-xl rounded-2xl border border-gray-700/50 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-gray-500 to-gray-600 rounded-xl flex items-center justify-center">
+              <Settings className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Blockchain Features</h3>
+              <p className="text-sm text-gray-400">Blockchain integration is currently disabled</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="h-5 w-5 text-gray-400" />
+            <span className="text-sm text-gray-400">Disabled</span>
+          </div>
+        </div>
+        <p className="text-sm text-gray-500">
+          To enable blockchain features, set REACT_APP_ENABLE_BLOCKCHAIN=true in your environment variables.
+        </p>
+      </div>
+    );
+  }
+
+  // If not connected, show connection prompt
   if (!isConnected) {
     return (
       <div className="bg-gradient-to-br from-gray-900 to-black backdrop-blur-xl rounded-2xl border border-gray-700/50 p-6">
@@ -127,6 +167,7 @@ export const BlockchainStatus = () => {
     );
   }
 
+  // Connected state
   return (
     <div className="bg-gradient-to-br from-gray-900 to-black backdrop-blur-xl rounded-2xl border border-gray-700/50 p-6">
       <div className="flex items-center justify-between mb-4">
